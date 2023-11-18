@@ -10,7 +10,13 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
- model User {
-  id    String  @id @default(auto()) @map("_id") @db.ObjectId
-  email String  @unique
- }
+model User {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  posts Post[]
+}
+
+model Post {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String @db.ObjectId
+}
