@@ -1,32 +1,82 @@
-import { z } from "zod";
+import {db} from "~/server/db"
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { z } from "zod";
 
 export const postRouter = createTRPCRouter({
-  hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.text}`,
-      };
+  getAll : publicProcedure.query(()=>{
+    return db.post.findMany()
+  }),
+
+  create: publicProcedure
+    .input(
+      z.object({
+        content: z.string(),
+        id : z.string(),
+      })
+    )
+    .mutation(async ({ctx,input }) => {
+
+      const post = await ctx.db.post.create({
+        data: {
+          authorId : input.id,
+          content: input.content,
+        },
+      });
+
+      return post;
     }),
 
-  // create: publicProcedure
-  //   .input(z.object({ name: z.string().min(1) }))
-  //   .mutation(async ({ ctx, input }) => {
-  //     // simulate a slow db call
-  //     await new Promise((resolve) => setTimeout(resolve, 1000));
+  getLatest: publicProcedure.query(() => {
+    return db.post.findFirst({
+      orderBy: { createdAt: "desc" },
+    });
+  }),
 
-  //     return ctx.db.post.create({
-  //       data: {
-  //         name: input.name,
-  //       },
-  //     });
-  //   }),
+  delete : publicProcedure
+    .input(
+      z.object({
+        id : z.string(),
+      })
+    )
 
-  // getLatest: publicProcedure.query(({ ctx }) => {
-  //   return ctx.db.post.findFirst({
-  //     orderBy: { createdAt: "desc" },
-  //   });
-  // }),
+    .mutation(async ({ input }) => {
+      try {
+        const deletePost = await db.post.delete({
+          where: {
+            id: input.id, 
+          },
+        });
+    
+        return deletePost;
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        throw new Error('Unable to delete post');
+      }
+    }),
+
+    getPostsByUserId: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+      })
+    )
+    .query(({ ctx, input }) =>
+      ctx.db.post
+        .findMany({
+          where: {
+            authorId: input.userId,
+          },
+          orderBy: [{ createdAt: "desc" }],
+        })
+    ),
+    
+    getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const post = await ctx.db.post.findUnique({
+        where: { id: input.id },
+      });
+      return post;
+    }),
 });
